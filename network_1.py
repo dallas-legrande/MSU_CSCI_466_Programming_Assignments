@@ -73,15 +73,14 @@ class Host:
         self.in_intf_L = [Interface()]
         self.out_intf_L = [Interface()]
         self.stop = False #for thread termination
-        self.max_data_S = 30
     
     ## called when printing the object
     def __str__(self):
         return 'Host_%s' % (self.addr)
 
-    #split the data being sent into smaller packets size of the max size initialized in constructor
-    def split_data(self, data_S):
-        sm_p = [(data_S[i:i+self.max_data_S]) for i in range(0, len(data_S), self.max_data_S)]
+    #split the data being sent into smaller packets size of the mtu
+    def split_data(self, data_S, mtu_S):
+        sm_p = [(data_S[i:i + mtu_S]) for i in range(0, len(data_S), mtu_S)]
         return sm_p
        
     ## create a packet and enqueue for transmission
@@ -89,7 +88,7 @@ class Host:
     # @param data_S: data being transmitted to the network layer
     #break large packets up into smaller packets
     def udt_send(self, dst_addr, data_S):
-        sm_p = self.split_data(data_S)
+        sm_p = self.split_data(data_S,self.out_intf_L[0].mtu)
         for i in sm_p:
             p = NetworkPacket(dst_addr, i)
             self.out_intf_L[0].put(p.to_byte_S())  # send packets always enqueued successfully
