@@ -6,6 +6,7 @@ Created on Oct 12, 2016
 import queue
 import threading
 import re
+import random
 
 
 ## wrapper class for a queue of packets
@@ -39,9 +40,17 @@ class NetworkPacket:
     
     ##@param dst_addr: address of the destination host
     # @param data_S: packet payload
-    def __init__(self, dst_addr, data_S):
+    def __init__(self, dst_addr, data_S, id, data_S_Length, offset, more_frag):
         self.dst_addr = dst_addr
         self.data_S = data_S
+        self.frag = {"id": id,
+                     "data_S_Length": data_S_Length,
+                     "offset": offset,
+                     "more_Frag": more_frag}
+        #self.id = id
+        #self.data_S_Length = data_S_Length
+        #self.offset = offset
+        #self.more_Frag = more_frag
         
     ## called when printing the object
     def __str__(self):
@@ -73,27 +82,42 @@ class Host:
         self.in_intf_L = [Interface()]
         self.out_intf_L = [Interface()]
         self.stop = False #for thread termination
-        self.max_data_S = 30
     
     ## called when printing the object
     def __str__(self):
         return 'Host_%s' % (self.addr)
 
     #split the data being sent into smaller packets size of the max size initialized in constructor
-    def split_data(self, data_S):
-        sm_p = [(data_S[i:i+self.max_data_S]) for i in range(0, len(data_S), self.max_data_S)]
-        return sm_p
+    #return the list with the data split and the length of the list
+    def split_data(self, data_S, mtu_S):
+        sm_p = [(data_S[i:i+mtu_S]) for i in range(0, len(data_S), mtu_S)]
+        sm_p_length = len(sm_p)
+        return sm_p, sm_p_length
+
+    #get a random id number in the range of 1-1000 to identify the fragmented packets
+    def get_id(self):
+        return random.randint(1, 1000)
        
     ## create a packet and enqueue for transmission
     # @param dst_addr: destination address for the packet
     # @param data_S: data being transmitted to the network layer
     #break large packets up into smaller packets
     def udt_send(self, dst_addr, data_S):
-        sm_p = self.split_data(data_S)
+        sm_p, sm_p_length = self.split_data(data_S, self.out_intf_L[0].mtu)
         for i in sm_p:
-            p = NetworkPacket(dst_addr, i)
-            self.out_intf_L[0].put(p.to_byte_S())  # send packets always enqueued successfully
-            print('%s: sending packet "%s" on the out interface with mtu=%d' % (self, p, self.out_intf_L[0].mtu))
+            if i != sm_p[sm_p_length-1]:
+                more_frag = 1
+            else:
+                more_frag = 0
+            if i == sm_p[0]:
+                id_num = self.get_id()
+                p = NetworkPacket(dst_addr, i, id_num, len(i), 0, more_frag)
+                self.out_intf_L[0].put(p.to_byte_S())  # send packets always enqueued successfully
+                print('%s: sending packet "%s" on the out interface with mtu=%d' % (self, p, self.out_intf_L[0].mtu))
+            else:
+                p = NetworkPacket(dst_addr, i, id_num, len(i), len(i) + len(i - 1), more_frag)
+                self.out_intf_L[0].put(p.to_byte_S())  # send packets always enqueued successfully
+                print('%s: sending packet "%s" on the out interface with mtu=%d' % (self, p, self.out_intf_L[0].mtu))
         
     ## receive packet from the network layer
     def udt_receive(self):
