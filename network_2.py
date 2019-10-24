@@ -43,14 +43,14 @@ class NetworkPacket:
     def __init__(self, dst_addr, data_S, id, data_S_Length, offset, more_frag):
         self.dst_addr = dst_addr
         self.data_S = data_S
-        self.frag = {"id": id,
-                     "data_S_Length": data_S_Length,
-                     "offset": offset,
-                     "more_Frag": more_frag}
-        #self.id = id
-        #self.data_S_Length = data_S_Length
-        #self.offset = offset
-        #self.more_Frag = more_frag
+#        self.frag = {"id": id,
+#                     "data_S_Length": data_S_Length,
+#                     "offset": offset,
+#                     "more_Frag": more_frag}
+        self.id = "id"+str(id)
+        self.data_S_Length = "data_S_Length"+str(data_S_Length)
+        self.offset = "offset"+str(offset)
+        self.more_Frag = "more_frag"+str(more_frag)
         
     ## called when printing the object
     def __str__(self):
@@ -60,15 +60,27 @@ class NetworkPacket:
     def to_byte_S(self):
         byte_S = str(self.dst_addr).zfill(self.dst_addr_S_length)
         byte_S += self.data_S
+        byte_S += self.id
+        byte_S += self.data_S_Length
+        byte_S += self.offset
+        byte_S += self.more_Frag
         return byte_S
+
+    def get_pkt_info(self):
+        return NetworkPacket.data_S, NetworkPacket.id, NetworkPacket.data_S_Length, NetworkPacket.offset
     
     ## extract a packet object from a byte string
     # @param byte_S: byte string representation of the packet
     @classmethod
     def from_byte_S(self, byte_S):
+        dta, id, ds, off = self.get_pkt_info(byte_S)
         dst_addr = int(byte_S[0 : NetworkPacket.dst_addr_S_length])
-        data_S = byte_S[NetworkPacket.dst_addr_S_length : ]
-        return self(dst_addr, data_S)
+        data_S = byte_S[NetworkPacket.dst_addr_S_length: len(dta)]
+        frag = {"id": int(byte_S[len(dta): len(id)]),
+                "data_S_Length": int(byte_S[len(id): len(ds)]),
+                "offset": int(byte_S[len(ds): len(off)]),
+                "more_Frag": int(byte_S[len(off): ])}
+        return self(dst_addr, data_S, frag)
 
 
     
@@ -94,28 +106,39 @@ class Host:
         sm_p_length = len(sm_p)
         return sm_p, sm_p_length
 
-    #get a random id number in the range of 1-1000 to identify the fragmented packets
+    #get a random id number in the range of 1-255 to identify the fragmented packets
     def get_id(self):
-        return random.randint(1, 1000)
+        return random.randint(1, 255)
        
     ## create a packet and enqueue for transmission
     # @param dst_addr: destination address for the packet
     # @param data_S: data being transmitted to the network layer
     #break large packets up into smaller packets
     def udt_send(self, dst_addr, data_S):
-        sm_p, sm_p_length = self.split_data(data_S, self.out_intf_L[0].mtu)
-        for i in sm_p:
-            if i != sm_p[sm_p_length-1]:
+        id_num = self.get_id()
+        sm_p, sm_p_length = self.split_data(data_S, self.out_intf_L[0].mtu - NetworkPacket.dst_addr_S_length - 38)
+        for count, i in enumerate(sm_p):
+            print("this is what is needed for the offset")
+            print(len(i))
+            #if there is more than one packet mark them so they can be re-combined later
+            if count < sm_p_length-1:
                 more_frag = 1
             else:
                 more_frag = 0
-            if i == sm_p[0]:
-                id_num = self.get_id()
-                p = NetworkPacket(dst_addr, i, id_num, len(i), 0, more_frag)
+            #if this is the first packet then there is no offset
+            if count == 0:
+                print("this is the more_frag bit when count == 0 ")
+                print(more_frag)
+                p = NetworkPacket(dst_addr, i, id_num, str(len(i)), 0, more_frag)
                 self.out_intf_L[0].put(p.to_byte_S())  # send packets always enqueued successfully
                 print('%s: sending packet "%s" on the out interface with mtu=%d' % (self, p, self.out_intf_L[0].mtu))
+            #it's not the first packet so set the offset to be the size of the last packet sent
             else:
-                p = NetworkPacket(dst_addr, i, id_num, len(i), len(i) + len(i - 1), more_frag)
+                print("this is the more_frag bit after count == 0 ")
+                print(more_frag)
+                p = NetworkPacket(dst_addr, i, id_num, str(len(i)), str(len(i) + len(sm_p[count-1])), more_frag)
+                print("this is the length of p")
+                print(len(str(p)))
                 self.out_intf_L[0].put(p.to_byte_S())  # send packets always enqueued successfully
                 print('%s: sending packet "%s" on the out interface with mtu=%d' % (self, p, self.out_intf_L[0].mtu))
         

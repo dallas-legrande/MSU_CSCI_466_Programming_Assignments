@@ -43,6 +43,7 @@ class Link:
         #otherwise transmit the packet
         try:
             self.out_intf.put(pkt_S)
+            print("make must have been small enough to send in tx_pkt")
             print('%s: transmitting packet "%s"' % (self, pkt_S))
         except queue.Full:
             print('%s: packet lost' % (self))
