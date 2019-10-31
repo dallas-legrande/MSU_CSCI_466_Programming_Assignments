@@ -145,11 +145,8 @@ class Router:
         self.in_intf_L = [Interface(max_queue_size) for _ in range(intf_count)]
         self.out_intf_L = [Interface(max_queue_size) for _ in range(intf_count)]
 
+    #method to route interfaces on links to correct links
     def route_table(self, dst):
-
-        # # ctr + / to uncomment
-        # print("self.dst == 00004")
-        # print(dst == "00004")
         if dst == "00004":
             if self.name == 'A':
                 from_interface = 1
