@@ -70,11 +70,11 @@ if __name__ == '__main__':
 
     # send 80 character message to host with address 3
     message = "Let us not, dear friends, forget our dear friends the cuttlefish... flipper conories little sausages. "
-    client_1.udt_send(1, 3, message)
+    client_1.udt_send(3, message)
 
     # send 70 character message to host with address 4
     message2 = "I submit here and now, that is what we all must do- we must fight... to run away."
-    client_2.udt_send(2, 4, message2)
+    client_2.udt_send(4, message2)
 
     #give the network sufficient time to transfer all packets before quitting
     sleep(simulation_time)

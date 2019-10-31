@@ -39,16 +39,14 @@ class NetworkPacket:
     # extended to include sequence number of packet and flags field
     sequence_num_field = 6
     flags_field = 7
-    from_client = 8
 
     ##@param dst_addr: address of the destination host
     # @param data_S: packet payload
-    def __init__(self, dst_addr, data_S, sequence_num, flags, from_client):
+    def __init__(self, dst_addr, data_S, sequence_num, flags):
         self.dst_addr = dst_addr
         self.data_S = data_S
         self.sequence_num = sequence_num
         self.flags = flags
-        self.from_client
 
     ## called when printing the object
     def __str__(self):
@@ -59,7 +57,6 @@ class NetworkPacket:
         byte_S = str(self.dst_addr).zfill(self.dst_addr_S_length)
         byte_S += str(self.sequence_num)
         byte_S += str(self.flags)
-        byte_S += str(self.from_client)
         byte_S += self.data_S
         return byte_S
 
@@ -70,9 +67,8 @@ class NetworkPacket:
         dst_addr = int(byte_S[0 : NetworkPacket.dst_addr_S_length])
         sequence_num = int(byte_S[NetworkPacket.dst_addr_S_length: NetworkPacket.sequence_num_field])
         flags = int(byte_S[NetworkPacket.sequence_num_field:NetworkPacket.flags_field])
-        from_client = int(byte_S[NetworkPacket.flags_field:NetworkPacket.from_client])
-        data_S = byte_S[NetworkPacket.from_client:]
-        return self(dst_addr, data_S, sequence_num, flags, from_client)
+        data_S = byte_S[NetworkPacket.flags_field:]
+        return self(dst_addr, data_S, sequence_num, flags)
 
 ## Implements a network host for receiving and transmitting data
 class Host:
@@ -91,13 +87,13 @@ class Host:
     ## create a packet and enqueue for transmission
     # @param dst_addr: destination address for the packet
     # @param data_S: data being transmitted to the network layer
-    def udt_send(self, send_addr, dst_addr, data_S):
-        MTU = self.out_intf_L[0].mtu - NetworkPacket.from_client
+    def udt_send(self, dst_addr, data_S):
+        MTU = self.out_intf_L[0].mtu - NetworkPacket.flags_field
         packet_counter = 0
 
         # adjust MTU for extra encoded fields (flag and sequence number)
-        MTU_adj = MTU - NetworkPacket.from_client
-        if len(data_S) > (MTU - NetworkPacket.from_client):
+        MTU_adj = MTU - NetworkPacket.flags_field
+        if len(data_S) > (MTU - NetworkPacket.flags_field):
             packet_size = (int(len(data_S) / MTU_adj) + 1)
         else:
             packet_size = 1
@@ -109,9 +105,9 @@ class Host:
             if pack_size_end > len(data_S):
                 pack_size_end = len(data_S)
             if i != packet_size - 1:
-                p = NetworkPacket(dst_addr, data_S[pack_size_begin:pack_size_end], packet_counter, 1, send_addr)
+                p = NetworkPacket(dst_addr, data_S[pack_size_begin:pack_size_end], packet_counter, 1)
             else:
-                p = NetworkPacket(dst_addr, data_S[pack_size_begin:pack_size_end], packet_counter, 0, send_addr)
+                p = NetworkPacket(dst_addr, data_S[pack_size_begin:pack_size_end], packet_counter, 0)
 
             self.out_intf_L[0].put(p.to_byte_S())  # send packets always enqueued successfully
             print('%s: sending packet "%s" on the out interface with mtu=%d\n' % (self, p, self.out_intf_L[0].mtu))
@@ -149,27 +145,23 @@ class Router:
         self.in_intf_L = [Interface(max_queue_size) for _ in range(intf_count)]
         self.out_intf_L = [Interface(max_queue_size) for _ in range(intf_count)]
 
-    def route_table(self, pkt_S):
-        from_client = int(pkt_S[NetworkPacket.flags_field:NetworkPacket.from_client])
+    def route_table(self, dst):
 
-        if pkt_S.from_client == 2:
-            if self.name == 'client_2':
-                from_interface = 0
-                to_interface = 1
-            elif self.name == 'router_a':
+        # # ctr + / to uncomment
+        # print("self.dst == 00004")
+        # print(dst == "00004")
+        if dst == "00004":
+            if self.name == 'A':
                 from_interface = 1
-                to_interface = 0
-            elif self.name == 'router_c':
+            elif self.name == 'C':
                 from_interface = 0
-                to_interface = 1
-            elif self.name == 'router_d':
+            elif self.name == 'D':
                 from_interface = 1
-                to_interface = 0
+
         else:
             from_interface = 0
-            to_interface = 0
 
-        return from_interface, to_interface
+        return from_interface
 
     ## called when printing the object
     def __str__(self):
@@ -185,14 +177,14 @@ class Router:
                 pkt_S = self.in_intf_L[i].get()
                 #if packet exists make a forwarding decision
                 if pkt_S is not None:
-                    from_inf, to_inf = self.route_table(pkt_S)
                     # improve forwarding to forward to appropriate interface, not just i
-                    MTU = self.out_intf_L[0].mtu - NetworkPacket.from_client
-                    data_S = pkt_S[NetworkPacket.from_client:]
+                    MTU = self.out_intf_L[0].mtu - NetworkPacket.flags_field
+                    data_S = pkt_S[NetworkPacket.flags_field:]
                     dst_addr = pkt_S[0:NetworkPacket.dst_addr_S_length]
                     packet_counter = pkt_S[NetworkPacket.dst_addr_S_length:NetworkPacket.sequence_num_field]
+                    from_inf = self.route_table(dst_addr)
 
-                    if (len(data_S) > (MTU - NetworkPacket.from_client)):
+                    if (len(data_S) > (MTU - NetworkPacket.flags_field)):
                         packet_size = (int(len(data_S) / MTU) + 1)
                     else:
                         packet_size = 1
@@ -200,7 +192,6 @@ class Router:
                     pack_size_end = MTU
 
                     for i in range(packet_size):
-
                         if (pack_size_end > len(data_S)):
                             pack_size_end = len(data_S)
                         if (i != (packet_size - 1)):
@@ -208,8 +199,9 @@ class Router:
                         else:
                             p = NetworkPacket(dst_addr, data_S[pack_size_begin:pack_size_end], packet_counter, 0)
 
-                        self.out_intf_L[0].put(p.to_byte_S(), True) #send packets always enqueued successfully
-                        print('%s: sending packet "%s" on the out interface with mtu=%d\n' % (self, p, MTU))
+                        self.out_intf_L[from_inf].put(p.to_byte_S(), True) #send packets always enqueued successfully
+                        #print('%s: sending packet "%s" on the out interface with mtu=%d\n' % (self, p, MTU))
+                        print('%s: sending packet "%s" on the out interface %d with mtu=%d\n' % (self, p, from_inf, MTU))
                         pack_size_begin += MTU
                         pack_size_end += MTU
 
