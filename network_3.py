@@ -179,7 +179,7 @@ class Router:
                     data_S = pkt_S[NetworkPacket.flags_field:]
                     dst_addr = pkt_S[0:NetworkPacket.dst_addr_S_length]
                     packet_counter = pkt_S[NetworkPacket.dst_addr_S_length:NetworkPacket.sequence_num_field]
-                    from_inf = self.route_table(dst_addr)
+                    out_inf = self.route_table(dst_addr)
 
                     if (len(data_S) > (MTU - NetworkPacket.flags_field)):
                         packet_size = (int(len(data_S) / MTU) + 1)
@@ -196,9 +196,8 @@ class Router:
                         else:
                             p = NetworkPacket(dst_addr, data_S[pack_size_begin:pack_size_end], packet_counter, 0)
 
-                        self.out_intf_L[from_inf].put(p.to_byte_S(), True) #send packets always enqueued successfully
-                        #print('%s: sending packet "%s" on the out interface with mtu=%d\n' % (self, p, MTU))
-                        print('%s: sending packet "%s" on the out interface %d with mtu=%d\n' % (self, p, from_inf, MTU))
+                        self.out_intf_L[out_inf].put(p.to_byte_S(), True) #send packets always enqueued successfully
+                        print('%s: sending packet "%s" on the out interface %d with mtu=%d\n' % (self, p, out_inf, MTU))
                         pack_size_begin += MTU
                         pack_size_end += MTU
 
