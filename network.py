@@ -134,53 +134,62 @@ class Router:
         self.name = name
         # create a list of interfaces
         self.intf_L = [Interface(max_queue_size) for _ in range(len(cost_D))]
-        # save neighbors and interfeces on which we connect to them
+
+        # save neighbors and interfaces on which we connect to them
         self.cost_D = cost_D  # {neighbor: {interface: cost}}
-        # TODO: set up the routing table for connected hosts
-        # if name == 'RA':
         self.rt_tbl_D = {'H1': {'RA': 1, 'RB': 2}, 'H2': {'RA': 4, 'RB': 3}, 'RA': {'RA': 0, 'RB': 1},
                          'RB': {'RA': 1, 'RB': 0}}  # {destination: {router: cost}}
-        # elif name == 'RB':
-        # self.rt_tbl_D = {'H1': {'RB': 2}, 'H2': {'RB': 3}, 'RA': {'RB': 1}, 'RB': {'RB': 0}}      # {destination: {router: cost}}
+
         print('%s: Initialized routing table' % self)
 
         self.print_routes()
 
-
-    ## Print routing table
-    def print_routes(self):
-        # prints routing table in 2D format
-        print(self.rt_tbl_D)
-        for i in range(5):
-            print("---------", end='')
-        print()
+    # printer header row of table
+    def print_headerRow(self):
+        Router.print_dotLine(self)
         print("|   ", end='')
         print(self, end='')
         print("  |  " + ' H1 ' + "  |  " + ' H2 ' + "  |  " + ' RA ' + "  |  " + ' RB ', end='')
-        print("  |  ")
-        for i in range(5):
-            print("---------", end='')
-        print()
+        print("  |  ")  # end of header row
+
+    #print Router A row of table
+    def print_RArow(self):
+        Router.print_dotLine(self)
         print("|   ", end='')
         print('RA', end='')
         print("  |  " + ' ' + str(self.rt_tbl_D.get('H1').get('RA')) + "    |" + '   ' + str(
             self.rt_tbl_D.get('H2').get('RA')) + " " +
               "   |  " + ' ' + str(self.rt_tbl_D.get('RA').get('RA')) + "    |  " + ' ' + str(
             self.rt_tbl_D.get('RB').get('RA')) + " ", end='')
-        print("   |  ")
-        for i in range(5):
-            print("---------", end='')
-        print()
+        print("   |  ")  # end of RA row
+
+    #print Router B row of table
+    def print_RBrow(self):
+        Router.print_dotLine(self)
         print("|   ", end='')
         print('RB', end='')
-        print("  |  " + ' ' + str(self.rt_tbl_D.get('H1').get('RA')) + "    |" + '   ' + str(
-            self.rt_tbl_D.get('H2').get('RA')) + " " +
-              "   |  " + ' ' + str(self.rt_tbl_D.get('RA').get('RA')) + "    |  " + ' ' + str(
-            self.rt_tbl_D.get('RB').get('RA')) + " ", end='')
-        print("   |  ")
+        print("  |  " + ' ' + str(self.rt_tbl_D.get('H1').get('RB')) + "    |" + '   ' + str(
+            self.rt_tbl_D.get('H2').get('RB')) + " " +
+              "   |  " + ' ' + str(self.rt_tbl_D.get('RA').get('RB')) + "    |  " + ' ' + str(
+            self.rt_tbl_D.get('RB').get('RB')) + " ", end='')
+        print("   |  ")  # end of RB row
+        Router.print_dotLine(self)  # end of table
+
+    #print the dashed line in the table
+    def print_dotLine(self):
         for i in range(5):
             print("---------", end='')
         print()
+
+    # Print routing table
+    def print_routes(self):
+        # prints routing table in one line
+        print(self.rt_tbl_D)
+
+        # prints routing table in 2D format
+        Router.print_headerRow(self)
+        Router.print_RArow(self)
+        Router.print_RBrow(self)
 
     ## called when printing the object
     def __str__(self):
