@@ -1,5 +1,6 @@
 import queue
 import threading
+import math
 
 
 ## wrapper class for a queue of packets
@@ -134,9 +135,22 @@ class Router:
         self.name = name
         # create a list of interfaces
         self.intf_L = [Interface(max_queue_size) for _ in range(len(cost_D))]
+        self.been_modified = 0  #dirty bit
 
         # save neighbors and interfaces on which we connect to them
         self.cost_D = cost_D  # {neighbor: {interface: cost}}
+        self.neighborNames = list(cost_D)
+        self.neighborA = self.neighborNames[0]
+        self.neighborB = self.neighborNames[1]
+        self.neighborAintf = 0
+        self.neighborBintf = 0
+        self.neighborAcost = cost_D.get(self.neighborA).get(0)
+        self.neighborBcost = cost_D.get(self.neighborB).get(1)
+
+        # self.rt_tbl_D = {'node': name, 'neighborA': self.neighborNames[0], 'interface0': 0,
+        #                  'cost0': cost_D.get(self.neighborA).get(0), 'neighborB': self.neighborNames[1],
+        #                  'interface1': 1, 'cost1': cost_D.get(self.neighborB).get(1)}
+
         self.rt_tbl_D = {'H1': {'RA': 1, 'RB': 2}, 'H2': {'RA': 4, 'RB': 3}, 'RA': {'RA': 0, 'RB': 1},
                          'RB': {'RA': 1, 'RB': 0}}  # {destination: {router: cost}}
 
@@ -232,10 +246,16 @@ class Router:
     def send_routes(self, i):
         # TODO: Send out a routing table update
         # create a routing table update packet
-        p = NetworkPacket(0, 'control', 'DUMMY_ROUTING_TABLE')
-        try:
-            print('%s: sending routing update "%s" from interface %d' % (self, p, i))
-            self.intf_L[i].put(p.to_byte_S(), 'out', True)
+        for j in self.rt_tbl_D:
+            print(self.rt_tbl_D[j]['RA'])
+            routeUpdate = min(self.rt_tbl_D[j]['RA'], self.rt_tbl_D[j]['RB'])
+            print("This is routeUpdate %d\n", routeUpdate)
+        p = NetworkPacket(0, 'control', 'dummy-table') #self.rt_tbl_D)
+        try:  #send on all the interfaces
+                print('%s: sending routing update "%s" from interface %d' % (self, p, 0))
+                self.intf_L[i].put(p.to_byte_S(), 'out', True)
+                print('%s: sending routing update "%s" from interface %d' % (self, p, 1))
+                self.intf_L[i].put(p.to_byte_S(), 'out', True)
         except queue.Full:
             print('%s: packet "%s" lost on interface %d' % (self, p, i))
             pass
